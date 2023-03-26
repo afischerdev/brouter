@@ -11,6 +11,7 @@ package btools.router;
 import java.util.ArrayList;
 import java.util.List;
 
+import btools.mapaccess.OsmNode;
 import btools.util.CheapRuler;
 
 public class OsmNogoPolygon extends OsmNodeNamed {
@@ -18,7 +19,7 @@ public class OsmNogoPolygon extends OsmNodeNamed {
     public final int y;
     public final int x;
 
-    Point(final int lon, final int lat) {
+    public Point(final int lon, final int lat) {
       x = lon;
       y = lat;
     }
@@ -240,7 +241,7 @@ public class OsmNogoPolygon extends OsmNodeNamed {
       final long p1x = p1.x;
       final long p1y = p1.y;
 
-      if (OsmNogoPolygon.isOnLine(px, py, p0x, p0y, p1x, p1y)) {
+      if (isOnLine(px, py, p0x, p0y, p1x, p1y)) {
         return true;
       }
 
@@ -494,5 +495,20 @@ public class OsmNogoPolygon extends OsmNodeNamed {
     // get the intersect parameter for S2
     final double tI = (ux * wy - uy * wx) / d;
     return (tI < 0 || tI > 1) ? 0 : 1; // return 0 if no intersect with S2
+  }
+
+  static public OsmNogoPolygon genBuffer(OsmNode n, double r, int pts) {
+    OsmNogoPolygon ret = new OsmNogoPolygon(true);
+    double[] lonlat2m = CheapRuler.getLonLatToMeterScales((n.ilat));
+    double dlon2m = lonlat2m[0];
+    double dlat2m = lonlat2m[1];
+    for (int i = 0; i <= pts * 4; i++) {
+      double angle = Math.toRadians(i * (90 / pts));
+      int x = (int) (n.ilon + (r / dlon2m) * Math.cos(angle));
+      int y = (int) (n.ilat + (r / dlat2m) * Math.sin(angle));
+      // System.out.println("poly " + i + " " + angle + " " + x + "_"+y );
+      ret.addVertex(x, y);
+    }
+    return ret;
   }
 }
