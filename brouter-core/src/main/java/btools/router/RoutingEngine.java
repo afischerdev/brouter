@@ -20,6 +20,7 @@ import btools.mapaccess.OsmLink;
 import btools.mapaccess.OsmLinkHolder;
 import btools.mapaccess.OsmNode;
 import btools.mapaccess.OsmNodePairSet;
+import btools.util.CheapRuler;
 import btools.util.CompactLongMap;
 import btools.util.SortedHeap;
 import btools.util.StackSampler;
@@ -592,55 +593,17 @@ public class RoutingEngine extends Thread {
         }
       }
     }
-
-    double radius = 100.;
-    OsmNogoPolygon ptCircle = OsmNogoPolygon.genBuffer(startWp.crosspoint, radius, 2);
-
-    MatchedWaypoint mwp1 = null;
-    MatchedWaypoint mwp2 = null;
-    OsmTrack newTrack = new OsmTrack();
-
-    int fromIdx = -1;
-    int toIdx = -1;
-    if (ourStart > 0) {
-      for (int i = ourStart - 1; i >= 0; i--) {
-        OsmPathElement p1 = tt.nodes.get(i);
-        OsmPathElement p2 = tt.nodes.get(i + 1 % ourSize);
-        boolean inter = ptCircle.intersects(p1.getILon(), p1.getILat(), p2.getILon(), p2.getILat());
-        if ((inter || i == 0) && mwp1 == null) {
-          mwp1 = new MatchedWaypoint();
-          mwp1.waypoint = new OsmNode(p1.getILon(), p1.getILat());
-          fromIdx = i;
-          break;
-        }
-        OsmNodeNamed n = new OsmNodeNamed();
-        n.name = "t1_" + i;
-        n.ilon = p1.getILon();
-        n.ilat = p1.getILat();
-      }
-      for (int i = ourStart; i < ourSize - 1; i++) {
-        OsmPathElement p1 = tt.nodes.get(i);
-        OsmPathElement p2 = tt.nodes.get(i + 1 % ourSize);
-        boolean inter = ptCircle.intersects(p1.getILon(), p1.getILat(), p2.getILon(), p2.getILat());
-        if (inter && mwp2 == null) {
-          mwp2 = new MatchedWaypoint();
-          mwp2.waypoint = new OsmNode(p1.getILon(), p1.getILat());
-          toIdx = i;
-          break;
-        }
-        OsmNodeNamed n = new OsmNodeNamed();
-        n.name = "t2_" + i;
-        n.ilon = p1.getILon();
-        n.ilat = p1.getILat();
-        //newTrack.pois.add(n);
-      }
-    }
-
+    
     List<MatchedWaypoint> wptlist = new ArrayList<>();
-    if (mwp1 != null) wptlist.add(mwp1);
-    if (mwp2 != null) wptlist.add(mwp2);
+    checkPointsForRecalc(tt, startWp, count, wptlist);
 
     if (wptlist.size() < 2) return 0;
+
+    MatchedWaypoint mwp1 = wptlist.get(0);
+    MatchedWaypoint mwp2 = wptlist.get(1);
+
+    int fromIdx = mwp1.indexInTrack;
+    int toIdx = mwp2.indexInTrack;
 
     OsmTrack mid = null;
     OsmTrack extra = new OsmTrack();
@@ -699,6 +662,64 @@ public class RoutingEngine extends Thread {
     tt.appendTrack(tail);
 
     return (ourSize - tt.nodes.size());
+  }
+
+  void checkPointsForRecalc(OsmTrack tt, MatchedWaypoint startWp, int count, List<MatchedWaypoint> wptlist) {
+    int ourSize = tt.nodes.size();
+    int ourStart = startWp.indexInTrack;
+
+    double radius = 100.;
+    double distance = 101;
+
+    MatchedWaypoint mwp1 = null;
+    MatchedWaypoint mwp2 = null;
+
+    OsmNogoPolygon ptCircle = null;
+    int fromIdx = -1;
+    int toIdx = -1;
+    if (ourStart > 0) {
+      for (; ; ) {
+        ptCircle = OsmNogoPolygon.genBuffer(startWp.crosspoint, radius, 2);
+        for (int i = ourStart - 1; i >= 0; i--) {
+          OsmPathElement p1 = tt.nodes.get(i);
+          OsmPathElement p2 = tt.nodes.get(i + 1 % ourSize);
+          boolean inter = ptCircle.intersects(p1.getILon(), p1.getILat(), p2.getILon(), p2.getILat());
+          if ((inter || i == 0) && mwp1 == null) {
+            mwp1 = new MatchedWaypoint();
+            mwp1.waypoint = new OsmNode(p1.getILon(), p1.getILat());
+            fromIdx = i;
+            break;
+          }
+        }
+        for (int i = ourStart; i < ourSize - 1; i++) {
+          OsmPathElement p1 = tt.nodes.get(i);
+          OsmPathElement p2 = tt.nodes.get(i + 1 % ourSize);
+          boolean inter = ptCircle.intersects(p1.getILon(), p1.getILat(), p2.getILon(), p2.getILat());
+          if (inter && mwp2 == null) {
+            mwp2 = new MatchedWaypoint();
+            mwp2.waypoint = new OsmNode(p2.getILon(), p2.getILat());
+            toIdx = i;
+            break;
+          }
+        }
+        distance = (mwp1 == null || mwp2 == null ? 0 : CheapRuler.distance(mwp2.waypoint.ilon, mwp2.waypoint.ilat, mwp1.waypoint.ilon, mwp1.waypoint.ilat));
+        if (radius > distance && distance != 0) {
+          radius = distance - 1;
+          mwp1 = null;
+          mwp2 = null;
+        } else break;
+      }
+    }
+
+    if (mwp1 != null) {
+      mwp1.indexInTrack = fromIdx;
+      wptlist.add(mwp1);
+    }
+    if (mwp2 != null) {
+      mwp2.indexInTrack = toIdx;
+      wptlist.add(mwp2);
+    }
+
   }
 
   // check for way back on way point
