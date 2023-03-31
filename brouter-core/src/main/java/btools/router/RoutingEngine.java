@@ -593,7 +593,7 @@ public class RoutingEngine extends Thread {
         }
       }
     }
-    
+
     List<MatchedWaypoint> wptlist = new ArrayList<>();
     checkPointsForRecalc(tt, startWp, count, wptlist);
 
@@ -708,6 +708,7 @@ public class RoutingEngine extends Thread {
           mwp1 = null;
           mwp2 = null;
         } else break;
+        if (radius < 10) break;
       }
     }
 
