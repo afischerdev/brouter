@@ -53,10 +53,6 @@ public final class RoutingContext {
 
   public int memoryclass = 64;
 
-  public int downhillcostdiv;
-  public int downhillcutoff;
-  public int uphillcostdiv;
-  public int uphillcutoff;
   public boolean carMode;
   public boolean bikeMode;
   public boolean footMode;
@@ -124,12 +120,6 @@ public final class RoutingContext {
 
     setModel(expctxGlobal._modelClass);
 
-    downhillcostdiv = (int) expctxGlobal.getVariableValue("downhillcost", 0.f);
-    downhillcutoff = (int) (expctxGlobal.getVariableValue("downhillcutoff", 0.f) * 10000);
-    uphillcostdiv = (int) expctxGlobal.getVariableValue("uphillcost", 0.f);
-    uphillcutoff = (int) (expctxGlobal.getVariableValue("uphillcutoff", 0.f) * 10000);
-    if (downhillcostdiv != 0) downhillcostdiv = 1000000 / downhillcostdiv;
-    if (uphillcostdiv != 0) uphillcostdiv = 1000000 / uphillcostdiv;
     carMode = 0.f != expctxGlobal.getVariableValue("validForCars", 0.f);
     bikeMode = 0.f != expctxGlobal.getVariableValue("validForBikes", 0.f);
     footMode = 0.f != expctxGlobal.getVariableValue("validForFoot", 0.f);
@@ -304,9 +294,10 @@ public final class RoutingContext {
 
   public void checkMatchedWaypointAgainstNogos(List<MatchedWaypoint> matchedWaypoints) {
     if (nogopoints == null) return;
-    List<MatchedWaypoint> newMatchedWaypoints = new ArrayList<>();
     int theSize = matchedWaypoints.size();
+    if (theSize<2) return;
     int removed = 0;
+    List<MatchedWaypoint> newMatchedWaypoints = new ArrayList<>();
     MatchedWaypoint prevMwp = null;
     boolean prevMwpIsInside = false;
     for (int i = 0; i < theSize; i++) {
@@ -314,7 +305,8 @@ public final class RoutingContext {
       boolean isInsideNogo = false;
       OsmNode wp = mwp.crosspoint;
       for (OsmNodeNamed nogo : nogopoints) {
-        if (wp.calcDistance(nogo) < nogo.radius
+        if (Double.isNaN(nogo.nogoWeight)
+          && wp.calcDistance(nogo) < nogo.radius
           && (!(nogo instanceof OsmNogoPolygon)
           || (((OsmNogoPolygon) nogo).isClosed
           ? ((OsmNogoPolygon) nogo).isWithin(wp.ilon, wp.ilat)
