@@ -1,6 +1,11 @@
 package btools.expressions;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 final class BExpression {
   private static final int OR_EXP = 10;
@@ -25,7 +30,8 @@ final class BExpression {
   private static final int VARIABLE_EXP = 34;
   private static final int FOREIGN_VARIABLE_EXP = 35;
   private static final int VARIABLE_GET_EXP = 36;
-
+  private static final int WARNINGS_EXP = 37;
+  private static final String WARNINGS_DELIMITERS_REGEX_PATTERN = "[&]";
   private int typ;
   private BExpression op1;
   private BExpression op2;
@@ -34,6 +40,46 @@ final class BExpression {
   private int variableIdx;
   private int lookupNameIdx;
   private int[] lookupValueIdxArray;
+  private String warnings;
+
+  public BExpression() {
+  }
+
+  // for tests
+  protected BExpression(String warnings) {
+    this.warnings = warnings;
+  }
+
+  private boolean isValidWarningToken(String token) {
+    if (token == null || token.isBlank()) return false;
+    // maybe more validating conditions here?
+    return true;
+  }
+
+  // Converts the raw value assigned to specially treated variable 'warnings'
+  // into a list of identifiers.
+  // See WARNINGS_DELIMITERS_REGEX.
+  // Always returns a list, maybe an empty list
+  public List<String> parseWarnings() {
+    if (warnings == null) {
+      return new ArrayList<>();
+    } else {
+      // do parse
+      Map<Boolean, List<String>> validityGroups = Stream
+        .of(warnings.split(WARNINGS_DELIMITERS_REGEX_PATTERN))
+        .collect(Collectors.groupingBy(this::isValidWarningToken));
+      List<String> invalid = validityGroups.get(false);
+      if (invalid != null) {
+        System.out.println("Invalid warning identifier(s): " + invalid);
+      }
+      List<String> valid = validityGroups.get(true);
+      if (valid == null) return new ArrayList<>();
+      return valid.stream()
+        .flatMap(v -> Stream.of(v.trim())) // " w1&w2   "
+        .distinct() // "w1&w1"
+        .collect(Collectors.toList());
+    }
+  }
 
   // Parse the expression and all subexpression
   public static BExpression parse(BExpressionContext ctx, int level) throws Exception {
@@ -107,13 +153,24 @@ final class BExpression {
             throw new IllegalArgumentException("variable name cannot contain '=': " + variable);
           if (variable.indexOf(':') >= 0)
             throw new IllegalArgumentException("cannot assign context-prefixed variable: " + variable);
-          exp.variableIdx = ctx.getVariableIdx(variable, true);
-          if (exp.variableIdx < ctx.getMinWriteIdx())
-            throw new IllegalArgumentException("cannot assign to readonly variable " + variable);
+          // specially treated variable: warnings
+          if ("warnings".equals(variable)) {
+            String token = ctx.parseToken();
+            // we need to support both assign=value and assign value syntax
+            if (token.equals("=")) {
+              token = ctx.parseToken();
+            }
+            exp.warnings = token;
+            exp.typ = WARNINGS_EXP;
+          } else {
+            exp.variableIdx = ctx.getVariableIdx(variable, true);
+            if (exp.variableIdx < ctx.getMinWriteIdx())
+              throw new IllegalArgumentException("cannot assign to readonly variable " + variable);
+          }
         } else if ("not".equals(operator)) {
           exp.typ = NOT_EXP;
         } else {
-          nops = 0; // check elemantary expressions
+          nops = 0; // check elementary expressions
           int idx = operator.indexOf('=');
           if (idx >= 0) {
             exp.typ = LOOKUP_EXP;
@@ -176,7 +233,9 @@ final class BExpression {
     }
     // parse operands
     if (nops > 0) {
-      exp.op1 = BExpression.parse(ctx, level + 1, exp.typ == ASSIGN_EXP ? "=" : null);
+      if (exp.typ != WARNINGS_EXP) {
+        exp.op1 = BExpression.parse(ctx, level + 1, exp.typ == ASSIGN_EXP ? "=" : null);
+      }
     }
     if (nops > 1) {
       if (ifThenElse) checkExpectedToken(ctx, "then");
@@ -228,6 +287,8 @@ final class BExpression {
         return op1.evaluate(ctx) != 0.f ? op2.evaluate(ctx) : op3.evaluate(ctx);
       case ASSIGN_EXP:
         return ctx.assign(variableIdx, op1.evaluate(ctx));
+      case WARNINGS_EXP:
+        return (float) -1.0;
       case LOOKUP_EXP:
         return ctx.getLookupMatch(lookupNameIdx, lookupValueIdxArray);
       case NUMBER_EXP:
