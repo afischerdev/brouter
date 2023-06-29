@@ -37,6 +37,15 @@ public final class RoutingContext {
   public Map<String, String> keyValues;
 
   public String rawTrackPath;
+  public List<String> nodeWarnings = new ArrayList<>();
+  public List<String> wayWarnings = new ArrayList<>();
+
+  // see ProfileCache.releaseProfile()
+  // we need to keep parsed warnings, node and way contexts are released (nullified)
+  public void copyWarnings(){
+    nodeWarnings.addAll(expctxNode.getNodeWarnings());
+    wayWarnings.addAll(expctxWay.getWayWarnings());
+  }
 
   public String getProfileName() {
     String name = localFunction == null ? "unknown" : localFunction;
