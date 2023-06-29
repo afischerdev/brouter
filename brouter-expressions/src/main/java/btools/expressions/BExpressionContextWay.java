@@ -8,6 +8,8 @@ package btools.expressions;
 
 import btools.codec.TagValueValidator;
 
+import java.util.List;
+
 public final class BExpressionContextWay extends BExpressionContext implements TagValueValidator {
   private boolean decodeForbidden = true;
 
@@ -84,6 +86,10 @@ public final class BExpressionContextWay extends BExpressionContext implements T
 
   public BExpressionContextWay(BExpressionMetaData meta) {
     super("way", meta);
+  }
+
+  public List<String> getWayWarnings(){
+    return warnings;
   }
 
   /**

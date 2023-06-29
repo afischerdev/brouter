@@ -7,6 +7,8 @@
 package btools.expressions;
 
 
+import java.util.List;
+
 public final class BExpressionContextNode extends BExpressionContext {
   private static String[] buildInVariables =
     {"initialcost"};
@@ -19,6 +21,9 @@ public final class BExpressionContextNode extends BExpressionContext {
     return getBuildInVariable(0);
   }
 
+  public List<String> getNodeWarnings(){
+    return warnings;
+  }
 
   public BExpressionContextNode(BExpressionMetaData meta) {
     super("node", meta);

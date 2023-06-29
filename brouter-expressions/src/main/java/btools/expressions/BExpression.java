@@ -156,7 +156,7 @@ final class BExpression {
           // specially treated variable: warnings
           if ("warnings".equals(variable)) {
             String token = ctx.parseToken();
-            // we need to support both assign=value and assign value syntax
+            // we need to support both assign warnings=value and assign warnings value syntax
             if (token.equals("=")) {
               token = ctx.parseToken();
             }

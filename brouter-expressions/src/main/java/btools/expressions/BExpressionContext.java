@@ -54,6 +54,9 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
 
   private float[] variableData;
 
+  // visible for way, node extending contexts
+  protected List<String> warnings = new ArrayList<>();
+
 
   // hash-cache for function results
   private CacheNode probeCacheNode = new CacheNode();
@@ -787,6 +790,12 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
       minWriteIdx = variableData == null ? 0 : variableData.length;
 
       expressionList = _parseFile(file);
+
+      // There can be multiple warnings assignments
+      // In the profile files, warnings can be closely associated with e.g. cost factor for ways, e.t.c
+      for (BExpression bex : expressionList) {
+        warnings.addAll(bex.parseWarnings());
+      }
 
       // determine the build-in variable indices
       String[] varNames = getBuildInVariableNames();
