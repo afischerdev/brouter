@@ -7,7 +7,7 @@
 package btools.expressions;
 
 
-import java.util.List;
+import java.util.Set;
 
 public final class BExpressionContextNode extends BExpressionContext {
   private static String[] buildInVariables =
@@ -21,7 +21,7 @@ public final class BExpressionContextNode extends BExpressionContext {
     return getBuildInVariable(0);
   }
 
-  public List<String> getNodeWarnings(){
+  public Set<String> getNodeWarnings() {
     return warnings;
   }
 

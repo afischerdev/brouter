@@ -3,7 +3,7 @@ package btools.expressions;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.List;
+import java.util.Set;
 
 public class ParseWarningsTest {
 
@@ -21,7 +21,7 @@ public class ParseWarningsTest {
     for (int i = 0; i < samples.length; i++) {
       System.out.println();
       System.out.println(">" + samples[i] + "<");
-      List<String> parsed = new BExpression(samples[i]).parseWarnings();
+      Set<String> parsed = new BExpression(samples[i]).parseWarnings();
       System.out.println(parsed);
       Assert.assertEquals(parsed.size(), expectedResultsSizes[i]);
     }

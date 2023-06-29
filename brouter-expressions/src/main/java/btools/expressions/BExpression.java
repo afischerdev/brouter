@@ -1,9 +1,6 @@
 package btools.expressions;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.StringTokenizer;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -56,12 +53,12 @@ final class BExpression {
   }
 
   // Converts the raw value assigned to specially treated variable 'warnings'
-  // into a list of identifiers.
+  // into a set of identifiers.
   // See WARNINGS_DELIMITERS_REGEX.
-  // Always returns a list, maybe an empty list
-  public List<String> parseWarnings() {
+  // Always returns a set, maybe an empty set
+  public Set<String> parseWarnings() {
     if (warnings == null) {
-      return new ArrayList<>();
+      return new HashSet<>();
     } else {
       // do parse
       Map<Boolean, List<String>> validityGroups = Stream
@@ -72,11 +69,10 @@ final class BExpression {
         System.out.println("Invalid warning identifier(s): " + invalid);
       }
       List<String> valid = validityGroups.get(true);
-      if (valid == null) return new ArrayList<>();
+      if (valid == null) return new HashSet<>();
       return valid.stream()
         .flatMap(v -> Stream.of(v.trim())) // " w1&w2   "
-        .distinct() // "w1&w1"
-        .collect(Collectors.toList());
+        .collect(Collectors.toSet());
     }
   }
 

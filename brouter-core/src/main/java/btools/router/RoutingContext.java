@@ -7,9 +7,7 @@ package btools.router;
 
 import java.io.DataOutput;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import btools.expressions.BExpressionContext;
 import btools.expressions.BExpressionContextNode;
@@ -37,8 +35,8 @@ public final class RoutingContext {
   public Map<String, String> keyValues;
 
   public String rawTrackPath;
-  public List<String> nodeWarnings = new ArrayList<>();
-  public List<String> wayWarnings = new ArrayList<>();
+  public Set<String> nodeWarnings = new HashSet<>();
+  public Set<String> wayWarnings = new HashSet<>();
 
   // see ProfileCache.releaseProfile()
   // we need to keep parsed warnings, node and way contexts are released (nullified)

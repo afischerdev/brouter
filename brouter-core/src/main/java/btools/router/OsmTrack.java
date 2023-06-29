@@ -22,12 +22,7 @@ import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.TimeZone;
+import java.util.*;
 
 import btools.mapaccess.MatchedWaypoint;
 import btools.mapaccess.OsmPos;
@@ -200,7 +195,7 @@ public final class OsmTrack {
     return res;
   }
 
-  public void processWarnings(List<String> nodeWarnings, List<String> wayWarnings) {
+  public void processWarnings(Set<String> nodeWarnings, Set<String> wayWarnings) {
 
     // this is just a proof of concept
     // details TO BE DONE soon

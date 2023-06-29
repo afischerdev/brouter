@@ -9,15 +9,7 @@ package btools.expressions;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.StringTokenizer;
-import java.util.TreeMap;
-import java.util.Locale;
+import java.util.*;
 
 import btools.util.BitCoderContext;
 import btools.util.Crc32;
@@ -55,7 +47,7 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
   private float[] variableData;
 
   // visible for way, node extending contexts
-  protected List<String> warnings = new ArrayList<>();
+  protected Set<String> warnings = new HashSet<>();
 
 
   // hash-cache for function results
