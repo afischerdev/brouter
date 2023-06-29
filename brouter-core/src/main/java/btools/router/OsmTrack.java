@@ -200,6 +200,29 @@ public final class OsmTrack {
     return res;
   }
 
+  public void processWarnings(List<String> nodeWarnings, List<String> wayWarnings) {
+
+    // this is just a proof of concept
+    // details TO BE DONE soon
+    // the idea is to examine key value pairs (osm tags)
+    // by 'chain' of 'warning detectors'
+
+    System.out.println("\nOsmTrack: processWarnings");
+    System.out.println("NodeWarnings: " + nodeWarnings);
+    System.out.println("WayWarnings: " + wayWarnings);
+    for (OsmPathElement n : nodes) {
+      System.out.println();
+      if (n.message.wayKeyValues != null) {
+        System.out.println("way key values:");
+        System.out.println(n.message.wayKeyValues);
+      }
+      if (n.message.nodeKeyValues != null) {
+        System.out.println("node key values:");
+        System.out.println(n.message.nodeKeyValues);
+      }
+    }
+  }
+
   private List<String> aggregateSpeedProfile() {
     ArrayList<String> res = new ArrayList<>();
     int vmax = -1;

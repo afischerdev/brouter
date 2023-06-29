@@ -117,6 +117,12 @@ public class ServerHandler extends RequestHandler {
 
   @Override
   public String formatTrack(OsmTrack track) {
+
+    System.out.println("RoutingContext warnings node (format track): " + rc.nodeWarnings);
+    System.out.println("RoutingContext warnings way: " + rc.wayWarnings);
+    // this is a suggestion, hint, to be done
+    track.processWarnings(rc.nodeWarnings, rc.wayWarnings);
+
     String result;
     // optional, may be null
     String format = params.get("format");

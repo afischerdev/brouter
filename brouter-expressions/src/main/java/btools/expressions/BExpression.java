@@ -51,9 +51,8 @@ final class BExpression {
   }
 
   private boolean isValidWarningToken(String token) {
-    if (token == null || token.isBlank()) return false;
+    return token != null && !token.isBlank();
     // maybe more validating conditions here?
-    return true;
   }
 
   // Converts the raw value assigned to specially treated variable 'warnings'
