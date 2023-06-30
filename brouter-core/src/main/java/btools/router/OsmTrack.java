@@ -22,12 +22,7 @@ import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.TimeZone;
+import java.util.*;
 
 import btools.mapaccess.MatchedWaypoint;
 import btools.mapaccess.OsmPos;
@@ -198,6 +193,29 @@ public final class OsmTrack {
       res.add(current.toMessage());
     }
     return res;
+  }
+
+  public void processWarnings(Set<String> nodeWarnings, Set<String> wayWarnings) {
+
+    // this is just a proof of concept
+    // details TO BE DONE soon
+    // the idea is to examine key value pairs (osm tags)
+    // by 'chain' of 'warning detectors'
+
+    System.out.println("\nOsmTrack: processWarnings");
+    System.out.println("NodeWarnings: " + nodeWarnings);
+    System.out.println("WayWarnings: " + wayWarnings);
+    for (OsmPathElement n : nodes) {
+      System.out.println();
+      if (n.message.wayKeyValues != null) {
+        System.out.println("way key values:");
+        System.out.println(n.message.wayKeyValues);
+      }
+      if (n.message.nodeKeyValues != null) {
+        System.out.println("node key values:");
+        System.out.println(n.message.nodeKeyValues);
+      }
+    }
   }
 
   private List<String> aggregateSpeedProfile() {

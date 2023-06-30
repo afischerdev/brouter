@@ -9,15 +9,7 @@ package btools.expressions;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.StringTokenizer;
-import java.util.TreeMap;
-import java.util.Locale;
+import java.util.*;
 
 import btools.util.BitCoderContext;
 import btools.util.Crc32;
@@ -53,6 +45,9 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
   private Map<String, Integer> variableNumbers = new HashMap<>();
 
   private float[] variableData;
+
+  // visible for way, node extending contexts
+  protected Set<String> warnings = new HashSet<>();
 
 
   // hash-cache for function results
@@ -787,6 +782,12 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
       minWriteIdx = variableData == null ? 0 : variableData.length;
 
       expressionList = _parseFile(file);
+
+      // There can be multiple warnings assignments
+      // In the profile files, warnings can be closely associated with e.g. cost factor for ways, e.t.c
+      for (BExpression bex : expressionList) {
+        warnings.addAll(bex.parseWarnings());
+      }
 
       // determine the build-in variable indices
       String[] varNames = getBuildInVariableNames();

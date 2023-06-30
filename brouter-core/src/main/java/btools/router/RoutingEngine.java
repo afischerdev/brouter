@@ -119,7 +119,8 @@ public class RoutingEngine extends Thread {
     if (hasInfo()) {
       logInfo("parsed profile " + rc.localFunction + " cached=" + cachedProfile);
     }
-
+    // node and way contexts are released (nullified)
+    routingContext.copyWarnings();
   }
 
   private boolean hasInfo() {
