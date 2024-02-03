@@ -13,11 +13,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
-import java.util.Locale;
 
 import btools.util.BitCoderContext;
 import btools.util.Crc32;
@@ -79,6 +79,8 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
 
   private BExpressionContext foreignContext;
 
+  private long routingDate = 0;
+
   protected void setInverseVars() {
     currentVarOffset = nBuildInVars;
   }
@@ -107,6 +109,7 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
   protected BExpressionContext(String context, int hashSize, BExpressionMetaData meta) {
     this.context = context;
     this.meta = meta;
+    this.routingDate = System.currentTimeMillis();
 
     if (meta != null) meta.registerListener(context, this);
 
@@ -117,6 +120,14 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
       cache = new LruMap(4 * hashSize, hashSize);
       resultVarCache = new LruMap(4096, 4096);
     }
+  }
+
+  public long getDate() {
+    return this.routingDate;
+  }
+
+  public void setDate(long d) {
+    this.routingDate = d;
   }
 
   /**
@@ -205,7 +216,7 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
       // see encoder for value rotation
       int dd = ctx.decodeVarBits();
       int d = dd == 7 ? 1 : (dd < 7 ? dd + 2 : dd + 1);
-      if (d >= lookupValues.get(inum).length && d < 1000) d = 1; // map out-of-range to unknown
+      if (d >= lookupValues.get(inum).length && d < 100) d = 1; // map out-of-range to unknown
       ld[inum++] = d;
     }
     while (inum < ld.length) ld[inum++] = 0;
@@ -215,9 +226,20 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
     StringBuilder sb = new StringBuilder(200);
     decode(lookupData, inverseDirection, ab);
     for (int inum = 0; inum < lookupValues.size(); inum++) { // loop over lookup names
-      BExpressionLookupValue[] va = lookupValues.get(inum);
-      int val = lookupData[inum];
-      String value = (val >= 1000) ? Float.toString((val - 1000) / 100f) : va[val].toString();
+      BExpressionLookupValue[] va;
+      int val;
+      String value;
+      if (lookupNames.get(inum).contains(":conditional")) {
+        // get value from main class
+        va = lookupValues.get(inum - 1);
+        int tmp = lookupData[inum];
+        val = tmp < 2 ? tmp : tmp - 100;
+        value = va[val].toString();
+      } else {
+        va = lookupValues.get(inum);
+        val = lookupData[inum];
+        value = ((val >= 1000) ? Float.toString((val - 1000) / 100f) : va[val].toString());
+      }
       if (value != null && value.length() > 0) {
         if (sb.length() > 0) sb.append(' ');
         sb.append(lookupNames.get(inum) + "=" + value);
@@ -525,6 +547,20 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
   public BExpressionLookupValue addLookupValue(String name, String value, int[] lookupData2) {
     BExpressionLookupValue newValue = null;
     Integer num = lookupNumbers.get(name);
+    String condition = null;
+    if (name.contains(":conditional")) {
+      if (value.contains("@")) {
+        value = value.replace("_", " ");
+        String[] sa = value.split("@");
+        if (sa.length == 2) {
+          condition = sa[1].trim();
+          value = sa[0].trim();
+        }
+      } else if (value.contains(":*")) {
+        value = value.substring(0, value.length() - 2);
+      }
+    }
+
     if (num == null) {
       if (lookupData2 != null) {
         // do not create unknown name for external data array
@@ -563,100 +599,148 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
           // found value for lookup *
           //System.out.println( "add unknown " + name + "  " + value );
           String org = value;
-          try {
-            // remove some unused characters
-            value = value.replaceAll(",", ".");
-            value = value.replaceAll(">", "");
-            value = value.replaceAll("_", "");
-            value = value.replaceAll(" ", "");
-            value = value.replaceAll("~", "");
-            value = value.replace((char) 8217, '\'');
-            value = value.replace((char) 8221, '"');
-            if (value.indexOf("-") == 0) value = value.substring(1);
-            if (value.contains("-")) {
-              // replace eg. 1.4-1.6 m to 1.4m
-              // but also 1'-6" to 1'
-              // keep the unit of measure
-              String tmp = value.substring(value.indexOf("-") + 1).replaceAll("[0-9.,-]", "");
-              value = value.substring(0, value.indexOf("-"));
-              if (value.matches("\\d+(\\.\\d+)?")) value += tmp;
-            }
-            value = value.toLowerCase(Locale.US);
+          if (name.contains(":conditional")) {
+            int result = ConditionHelper.COND_RESULT_INVALID;
+            if (condition != null) {
+              byte type = ConditionHelper.getConditionalType(condition);
+              if (
+                (type == ConditionHelper.COND_TYPE_MONTHS ||
+                  type == ConditionHelper.COND_TYPE_MONTH_DATES)) {
+                //System.out.println( "lookup old values size " + name + " " + values.length );
+                // prepare add new value
 
-            // do some value conversion
-            if (value.contains("ft")) {
-              float feet = 0f;
-              int inch = 0;
-              String[] sa = value.split("ft");
-              if (sa.length >= 1) feet = Float.parseFloat(sa[0]);
-              if (sa.length == 2) {
-                value = sa[1];
-                if (value.indexOf("in") > 0) value = value.substring(0, value.indexOf("in"));
-                inch = Integer.parseInt(value);
-                feet += inch / 12f;
+                result = ConditionHelper.getConditionForDate(type, getDate(), condition);
+                if (result != ConditionHelper.COND_RESULT_INVALID) {
+                  num = lookupNumbers.get(name.substring(0, name.indexOf(":cond")));
+                  values = lookupValues.get(num.intValue());
+
+                  for (i = 0; i < values.length; i++) {
+                    BExpressionLookupValue v = values[i];
+                    if (v.matches(value)) break;
+                  }
+                  if (i < values.length) {
+                    lookupData2[inum] = 100 + i;
+                  }
+
+                  // change pre key with new value
+                  if (result == ConditionHelper.COND_RESULT_TRUE) {
+                    num = lookupNumbers.get(name.substring(0, name.indexOf(":cond")));
+                    values = lookupValues.get(num.intValue());
+                    //System.out.println( "lookup values size " +  values.length );
+                    for (i = 0; i < values.length; i++) {
+                      BExpressionLookupValue v = values[i];
+                      //System.out.println( "lookup values " + i + "  " + v );
+                      if (v.matches(value)) break;
+                    }
+                    if (i < values.length) {
+                      lookupData2[inum - 1] = i;
+                    }
+                  }
+                } else {
+                  System.out.println("condition invalid for " + name + " " + condition + " " + value + " " + result);
+                }
               }
-              value = String.format(Locale.US, "%3.1f", feet * 0.3048f);
-            } else if (value.contains("'")) {
-              float feet = 0f;
-              int inch = 0;
-              String[] sa = value.split("'");
-              if (sa.length >= 1) feet = Float.parseFloat(sa[0]);
-              if (sa.length == 2) {
-                value = sa[1];
-                if (value.indexOf("''") > 0) value = value.substring(0, value.indexOf("''"));
-                if (value.indexOf("\"") > 0) value = value.substring(0, value.indexOf("\""));
-                inch = Integer.parseInt(value);
-                feet += inch / 12f;
-              }
-              value = String.format(Locale.US, "%3.1f", feet * 0.3048f);
-            } else if (value.contains("in") || value.contains("\"")) {
-              float inch = 0f;
-              if (value.indexOf("in") > 0) value = value.substring(0, value.indexOf("in"));
-              if (value.indexOf("\"") > 0) value = value.substring(0, value.indexOf("\""));
-              inch = Float.parseFloat(value);
-              value = String.format(Locale.US, "%3.1f", inch * 0.0254f);
-            } else if (value.contains("feet") || value.contains("foot")) {
-              float feet = 0f;
-              String s = value.substring(0, value.indexOf("f"));
-              feet = Float.parseFloat(s);
-              value = String.format(Locale.US, "%3.1f", feet * 0.3048f);
-            } else if (value.contains("fathom") || value.contains("fm")) {
-              String s = value.substring(0, value.indexOf("f"));
-              float fathom = Float.parseFloat(s);
-              value = String.format(Locale.US, "%3.1f", fathom * 1.8288f);
-            } else if (value.contains("cm")) {
-              String[] sa = value.split("cm");
-              if (sa.length >= 1) value = sa[0];
-              float cm = Float.parseFloat(value);
-              value = String.format(Locale.US, "%3.1f", cm / 100f);
-            } else if (value.contains("meter")) {
-              value = value.substring(0, value.indexOf("m"));
-            } else if (value.contains("mph")) {
-              String[] sa = value.split("mph");
-              if (sa.length >= 1) value = sa[0];
-              float mph = Float.parseFloat(value);
-              value = String.format(Locale.US, "%3.1f", mph * 1.609344f);
-            } else if (value.contains("knot")) {
-              String[] sa = value.split("knot");
-              if (sa.length >= 1) value = sa[0];
-              float nm = Float.parseFloat(value);
-              value = String.format(Locale.US, "%3.1f", nm * 1.852f);
-            } else if (value.contains("kmh") || value.contains("km/h") || value.contains("kph")) {
-              String[] sa = value.split("k");
-              if (sa.length > 1) value = sa[0];
-            } else if (value.contains("m")) {
-              value = value.substring(0, value.indexOf("m"));
-            } else if (value.contains("(")) {
-              value = value.substring(0, value.indexOf("("));
             }
-            // found negative maxdraft values
-            // no negative values
-            // values are float with 2 decimals
-            lookupData2[inum] = 1000 + (int) (Math.abs(Float.parseFloat(value)) * 100f);
-          } catch (Exception e) {
-            // ignore errors
-            System.err.println("error for " + name + "  " + org + " trans " + value + " " + e.getMessage());
-            lookupData2[inum] = 0;
+            if (result == ConditionHelper.COND_RESULT_INVALID) {
+              lookupData2[inum] = 0;
+            }
+          } else {
+
+            try {
+              // remove some unused characters
+              value = value.replaceAll(",", ".");
+              value = value.replaceAll(">", "");
+              value = value.replaceAll("_", "");
+              value = value.replaceAll(" ", "");
+              value = value.replaceAll("~", "");
+              value = value.replace((char) 8217, '\'');
+              value = value.replace((char) 8221, '"');
+              if (value.indexOf("-") == 0) value = value.substring(1);
+              if (value.contains("-")) {
+                // replace eg. 1.4-1.6 m to 1.4m
+                // but also 1'-6" to 1'
+                // keep the unit of measure
+                String tmp = value.substring(value.indexOf("-") + 1).replaceAll("[0-9.,-]", "");
+                value = value.substring(0, value.indexOf("-"));
+                if (value.matches("\\d+(\\.\\d+)?")) value += tmp;
+              }
+              value = value.toLowerCase(Locale.US);
+
+              // do some value conversion
+              if (value.contains("ft")) {
+                float feet = 0f;
+                int inch = 0;
+                String[] sa = value.split("ft");
+                if (sa.length >= 1) feet = Float.parseFloat(sa[0]);
+                if (sa.length == 2) {
+                  value = sa[1];
+                  if (value.indexOf("in") > 0) value = value.substring(0, value.indexOf("in"));
+                  inch = Integer.parseInt(value);
+                  feet += inch / 12f;
+                }
+                value = String.format(Locale.US, "%3.1f", feet * 0.3048f);
+              } else if (value.contains("'")) {
+                float feet = 0f;
+                int inch = 0;
+                String[] sa = value.split("'");
+                if (sa.length >= 1) feet = Float.parseFloat(sa[0]);
+                if (sa.length == 2) {
+                  value = sa[1];
+                  if (value.indexOf("''") > 0) value = value.substring(0, value.indexOf("''"));
+                  if (value.indexOf("\"") > 0) value = value.substring(0, value.indexOf("\""));
+                  inch = Integer.parseInt(value);
+                  feet += inch / 12f;
+                }
+                value = String.format(Locale.US, "%3.1f", feet * 0.3048f);
+              } else if (value.contains("in") || value.contains("\"")) {
+                float inch = 0f;
+                if (value.indexOf("in") > 0) value = value.substring(0, value.indexOf("in"));
+                if (value.indexOf("\"") > 0) value = value.substring(0, value.indexOf("\""));
+                inch = Float.parseFloat(value);
+                value = String.format(Locale.US, "%3.1f", inch * 0.0254f);
+              } else if (value.contains("feet") || value.contains("foot")) {
+                float feet = 0f;
+                String s = value.substring(0, value.indexOf("f"));
+                feet = Float.parseFloat(s);
+                value = String.format(Locale.US, "%3.1f", feet * 0.3048f);
+              } else if (value.contains("fathom") || value.contains("fm")) {
+                String s = value.substring(0, value.indexOf("f"));
+                float fathom = Float.parseFloat(s);
+                value = String.format(Locale.US, "%3.1f", fathom * 1.8288f);
+              } else if (value.contains("cm")) {
+                String[] sa = value.split("cm");
+                if (sa.length >= 1) value = sa[0];
+                float cm = Float.parseFloat(value);
+                value = String.format(Locale.US, "%3.1f", cm / 100f);
+              } else if (value.contains("meter")) {
+                value = value.substring(0, value.indexOf("m"));
+              } else if (value.contains("mph")) {
+                String[] sa = value.split("mph");
+                if (sa.length >= 1) value = sa[0];
+                float mph = Float.parseFloat(value);
+                value = String.format(Locale.US, "%3.1f", mph * 1.609344f);
+              } else if (value.contains("knot")) {
+                String[] sa = value.split("knot");
+                if (sa.length >= 1) value = sa[0];
+                float nm = Float.parseFloat(value);
+                value = String.format(Locale.US, "%3.1f", nm * 1.852f);
+              } else if (value.contains("kmh") || value.contains("km/h") || value.contains("kph")) {
+                String[] sa = value.split("k");
+                if (sa.length > 1) value = sa[0];
+              } else if (value.contains("m")) {
+                value = value.substring(0, value.indexOf("m"));
+              } else if (value.contains("(")) {
+                value = value.substring(0, value.indexOf("("));
+              }
+              // found negative maxdraft values
+              // no negative values
+              // values are float with 2 decimals
+              lookupData2[inum] = 1000 + (int) (Math.abs(Float.parseFloat(value)) * 100f);
+            } catch (Exception e) {
+              // ignore errors
+              System.err.println("error for " + name + "  " + org + " trans " + value + " " + e.getMessage());
+              lookupData2[inum] = 0;
+            }
           }
         }
         return newValue;
