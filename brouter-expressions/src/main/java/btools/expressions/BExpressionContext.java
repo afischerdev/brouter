@@ -992,6 +992,12 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
   }
 
   public final boolean isLookupIdxUsed(int idx) {
+    // show conditional rule when the parent was used
+    if (idx < lookupIdxUsed.length &&
+        lookupNames.get(idx).endsWith(":conditional") &&
+        lookupIdxUsed[idx-1]) {
+      lookupIdxUsed[idx] = true;
+    }
     return idx < lookupIdxUsed.length && lookupIdxUsed[idx];
   }
 
