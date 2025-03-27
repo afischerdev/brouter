@@ -13,6 +13,26 @@ buildscript {
     }
 }
 
+plugins {
+    id 'me.qoomon.git-versioning' version '6.3.6'
+}
+
+gitVersioning.apply {
+    refs {
+        considerTagsOnBranches = true
+        tag('v(?<version>.*)') {
+            version = '${ref.version}'
+        }
+        branch('.+') {
+            version = '${describe.tag.version}+${describe.distance}-${ref}-g${commit.short}'
+        }
+    }
+
+    rev {
+        version = '${commit}'
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }

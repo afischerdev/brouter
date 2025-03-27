@@ -2,7 +2,6 @@ plugins {
     id 'java'
     id 'checkstyle'
     id 'pmd'
-    id 'brouter.version-conventions'
 }
 
 group 'org.btools'
