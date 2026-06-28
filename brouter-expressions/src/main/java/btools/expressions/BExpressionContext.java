@@ -216,13 +216,19 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
     while (inum < ld.length) ld[inum++] = 0;
   }
 
+
   public String getKeyValueDescription(boolean inverseDirection, byte[] ab) {
+    return getKeyValueDescription(inverseDirection, false, ab);
+  }
+
+  public String getKeyValueDescription(boolean inverseDirection, boolean asMpH, byte[] ab) {
     StringBuilder sb = new StringBuilder(200);
     decode(lookupData, inverseDirection, ab);
     for (int inum = 0; inum < lookupValues.size(); inum++) { // loop over lookup names
       BExpressionLookupValue[] va = lookupValues.get(inum);
       int val = lookupData[inum];
       String value = (val >= 1000) ? Float.toString((val - 1000) / 100f) : va[val].toString();
+      if (asMpH && lookupNames.get(inum).startsWith("maxspeed")) value =  va[val].getAliasMpH();
       if (value != null && value.length() > 0) {
         if (sb.length() > 0) sb.append(' ');
         sb.append(lookupNames.get(inum) + "=" + value);
@@ -305,6 +311,17 @@ public abstract class BExpressionContext implements IByteArrayUnifier {
 
     // add aliases
     while (newValue != null && tk.hasMoreTokens()) newValue.addAlias(tk.nextToken());
+    if (name.startsWith("maxspeed")) {
+      if (newValue.aliases != null) {
+        for (String s : newValue.aliases) {
+          if (s.contains("mph")) {
+            newValue.aliasMpH = s;
+            break;
+          }
+        }
+      }
+    }
+
   }
 
   public void finishMetaParsing() {

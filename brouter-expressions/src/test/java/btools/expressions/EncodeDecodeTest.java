@@ -69,6 +69,41 @@ public class EncodeDecodeTest {
   }
 
   @Test
+  public void encodeDecodeTestSpeedMpH() {
+    Assert.assertNotNull("no way data", expctxWay);
+    String[] tags = {
+      "highway=residential",
+      "maxspeed=30mph",
+      "maxspeed:backward=60_mph",
+      "maxspeed:forward=DE:urban"
+      };
+
+    // encode the tags into 64 bit description word
+    int[] lookupData = expctxWay.createNewLookupData();
+    for (String arg : tags) {
+      int idx = arg.indexOf('=');
+      if (idx < 0)
+        throw new IllegalArgumentException("bad argument (should be <tag>=<value>): " + arg);
+      String key = arg.substring(0, idx);
+      String value = arg.substring(idx + 1);
+
+      expctxWay.addLookupValue(key, value, lookupData);
+    }
+    byte[] description = expctxWay.encode(lookupData);
+
+    // calculate the cost factor from that description
+    expctxWay.evaluate(true, description); // true = "reversedirection=yes"  (not encoded in description anymore)
+
+    float costfactor = expctxWay.getCostfactor();
+
+    System.out.println("test km  speed " + costfactor + "\ndescription: " + expctxWay.getKeyValueDescription(true, false, description));
+
+    System.out.println("test mph speed " + costfactor + "\ndescription: " + expctxWay.getKeyValueDescription(true, true, description));
+
+    Assert.assertTrue("costfactor mismatch", Math.abs(costfactor - 50.0f) < 0.00001f);
+  }
+
+  @Test
   public void encodeDecodeTestSpeedUnknown() {
     Assert.assertNotNull("no way data", expctxWay);
     String[] tags = {

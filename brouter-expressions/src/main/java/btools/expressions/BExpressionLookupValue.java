@@ -15,6 +15,7 @@ import java.util.List;
 final class BExpressionLookupValue {
   String value;
   List<String> aliases;
+  String aliasMpH;
 
   @Override
   public String toString() {
@@ -28,6 +29,10 @@ final class BExpressionLookupValue {
   public void addAlias(String alias) {
     if (aliases == null) aliases = new ArrayList<>();
     aliases.add(alias);
+  }
+
+  public String getAliasMpH() {
+    return aliasMpH;
   }
 
   @Override
