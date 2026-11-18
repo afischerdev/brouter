@@ -49,9 +49,35 @@ def smallJar = tasks.register('smallJar', Jar) {
         with jar
 }
 
+def syncJar = tasks.register('syncJar', Jar) {
+        archiveFileName = 'brouter-' + project.version + '-sync.jar'
+
+        manifest {
+            attributes "Main-Class": "btools.server.BRouterDeltaDownload", "Implementation-Version": project.version
+        }
+
+        dependsOn configurations.runtimeClasspath
+        from {
+            configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+        } {
+            exclude "btools/core/**"
+            exclude "btools/router/**"
+            exclude "btools/mapcreator/**"
+            exclude "org/**"
+            exclude "google/**"
+            exclude "com/**"
+            exclude "META-INF/maven/**"
+            exclude "META-INF/*.SF"
+            exclude "META-INF/*.DSA"
+            exclude "META-INF/*.RSA"
+        }
+        with jar
+}
+
 distZip {
     dependsOn fatJar
     dependsOn smallJar
+    dependsOn syncJar
     if (file('../local.properties').exists()) dependsOn (':brouter-routing-app:assemble')
     archiveFileName = 'brouter-' + project.version + '.zip'
 }
@@ -83,6 +109,7 @@ distributions {
             from ('../brouter-server/build/libs') {
                 include 'brouter-*-all.jar'
                 include 'brouter-*-ro.jar'
+                include 'brouter-*-sync.jar'
             }
         }
     }
