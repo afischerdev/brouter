@@ -251,12 +251,20 @@ public final class Rd5Download {
           }
         }
       } else {
+        if (tmpSegmentFile.exists()) {
+          tmpSegmentFile.delete();
+        }
+      }
+
+      if (!tmpSegmentFile.exists()) {
+        long t0 = System.currentTimeMillis();
         String segmentLocation = segment_url + segmentName + SEGMENT_SUFFIX;
         URL segmentUrl = URI.create(segmentLocation).toURL();
         result = downloadFile(segmentUrl, tmpSegmentFile, 0, false, 0, new AtomicBoolean(false));
-        if (DEBUG) System.out.println("download " + result);
+        long t1 = System.currentTimeMillis();
+        System.out.println(segmentName + " full download " +  (t1 - t0) + "ms");
       }
-      if (result) {
+      if (result && tmpSegmentFile.exists()) {
         try {
           PhysicalFile.checkFileIntegrity(tmpSegmentFile);
           if (segmentFile.exists()) {
